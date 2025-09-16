@@ -1,5 +1,5 @@
 import { test, expect, describe, beforeAll } from "bun:test";
-import { AzureModerator } from "./AzureModerator";
+import { AzureModerator } from "../../src/core/AzureModerator";
 
 describe("AzureModerator", () => {
   let moderator: AzureModerator;

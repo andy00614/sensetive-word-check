@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>敏感词检测测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        h2 {
+            color: #555;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        textarea {
+            width: 100%;
+            height: 120px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            resize: vertical;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 10px 5px 0 0;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .safe {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        .forbidden {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .test-samples {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .sample-button {
+            background: #28a745;
+            font-size: 12px;
+            padding: 8px 12px;
+        }
+        .sample-button:hover {
+            background: #218838;
+        }
+        .stats {
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+        }
+        .loading {
+            color: #007bff;
+            font-style: italic;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>敏感词检测测试页面</h1>
+
+    <div class="container">
+        <h2>🔍 文本检测</h2>
+        <textarea id="textInput" placeholder="在这里输入要检测的文本..."></textarea>
+        <div>
+            <button onclick="testAhoCorasick()">AhoCorasick 检测</button>
+            <button onclick="testRealWorldDetector()">RealWorld 检测</button>
+            <button onclick="testAzureModerator()">Azure 检测</button>
+            <button onclick="testAll()">全部检测</button>
+            <button onclick="clearResults()">清空结果</button>
+        </div>
+
+        <h3>📝 测试样本</h3>
+        <div class="test-samples">
+            <button class="sample-button" onclick="setSample('今天天气不错，适合出去走走')">安全文本</button>
+            <button class="sample-button" onclick="setSample('你这个傻逼')">粗俗辱骂</button>
+            <button class="sample-button" onclick="setSample('习近平是独裁')">政治敏感</button>
+            <button class="sample-button" onclick="setSample('我要杀了你')">暴力威胁</button>
+            <button class="sample-button" onclick="setSample('房价太高，教育内卷严重')">警告级别</button>
+            <button class="sample-button" onclick="setSample('政府的管理水平需要提升，希望政策执行更加透明')">复合内容</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>⚙️ Azure 配置</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+            <div>
+                <label for="azureEndpoint">Azure Endpoint:</label>
+                <input type="text" id="azureEndpoint" placeholder="https://your-resource.cognitiveservices.azure.com/contentsafety/text:analyze?api-version=2023-10-01"
+                       style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+            <div>
+                <label for="azureKey">Subscription Key:</label>
+                <input type="password" id="azureKey" placeholder="your-subscription-key"
+                       style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #ddd; border-radius: 4px;">
+            </div>
+        </div>
+        <button onclick="testAzureConnection()" style="background: #17a2b8;">测试 Azure 连接</button>
+    </div>
+
+    <div class="container">
+        <h2>📊 检测结果</h2>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        let ahocorasickWorker = null;
+        let realWorldDetector = null;
+
+        // 模拟 AhoCorasick 检测 (实际应该调用后端API)
+        async function simulateAhoCorasick(text) {
+            // 模拟一些检测结果
+            const sensitiveWords = ['傻逼', '操你妈', '习近平', '共产党', '杀了你', '炸掉', '政府', '官员'];
+            const results = [];
+
+            sensitiveWords.forEach(word => {
+                const index = text.indexOf(word);
+                if (index !== -1) {
+                    results.push({
+                        word: word,
+                        position: [index, index + word.length],
+                        category: word.includes('傻') || word.includes('操') ? '辱骂词库' :
+                                 word.includes('习') || word.includes('共产') ? '政治敏感' :
+                                 word.includes('杀') || word.includes('炸') ? '暴力词库' : '其他',
+                        source: word.includes('傻') || word.includes('操') ? 'curse.txt' :
+                               word.includes('习') || word.includes('共产') ? 'political.txt' :
+                               word.includes('杀') || word.includes('炸') ? 'violence.txt' : 'other.txt'
+                    });
+                }
+            });
+
+            return results;
+        }
+
+        // Azure Content Moderator 检测
+        async function callAzureModerator(text) {
+            const endpoint = document.getElementById('azureEndpoint').value.trim();
+            const subscriptionKey = document.getElementById('azureKey').value.trim();
+
+            if (!endpoint || !subscriptionKey) {
+                throw new Error('请先配置 Azure Endpoint 和 Subscription Key');
+            }
+
+            const request = {
+                text: text
+            };
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Ocp-Apim-Subscription-Key': subscriptionKey
+                },
+                body: JSON.stringify(request),
+                signal: AbortSignal.timeout(10000)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Azure API error (${response.status}): ${errorText}`);
+            }
+
+            return await response.json();
+        }
+
+        // 分析 Azure 结果
+        function analyzeAzureResult(result, options = {}) {
+            const highRiskThreshold = options.highRiskThreshold ?? 4;
+            const mediumRiskThreshold = options.mediumRiskThreshold ?? 2;
+
+            let maxSeverity = 0;
+            const riskCategories = [];
+            const severityBreakdown = {};
+
+            for (const category of result.categoriesAnalysis) {
+                maxSeverity = Math.max(maxSeverity, category.severity);
+                severityBreakdown[category.category] = category.severity;
+
+                if (category.severity >= mediumRiskThreshold) {
+                    riskCategories.push(category.category);
+                }
+            }
+
+            return {
+                hasHighRisk: maxSeverity >= highRiskThreshold,
+                hasMediumRisk: maxSeverity >= mediumRiskThreshold,
+                maxSeverity,
+                riskCategories,
+                severityBreakdown
+            };
+        }
+
+        // 模拟 RealWorldDetector 检测
+        async function simulateRealWorldDetector(text) {
+            const directCurse = ['傻逼', '操你妈', '操你', 'sb', 'cnm'];
+            const political = ['习近平', '共产党', '独裁', '专制'];
+            const violence = ['杀了你', '炸掉', '放火', '开枪'];
+            const warning = ['房价', '教育内卷', '政府', '官员'];
+
+            const analysis = {
+                directMatches: [],
+                politicalSensitive: false,
+                violenceThreat: false,
+                curseWords: false,
+                riskScore: 0
+            };
+
+            // 检查各类词汇
+            directCurse.forEach(word => {
+                if (text.includes(word)) {
+                    analysis.curseWords = true;
+                    analysis.directMatches.push(word);
+                    analysis.riskScore += 10;
+                }
+            });
+
+            political.forEach(word => {
+                if (text.includes(word)) {
+                    analysis.politicalSensitive = true;
+                    analysis.directMatches.push(word);
+                    analysis.riskScore += 8;
+                }
+            });
+
+            violence.forEach(word => {
+                if (text.includes(word)) {
+                    analysis.violenceThreat = true;
+                    analysis.directMatches.push(word);
+                    analysis.riskScore += 9;
+                }
+            });
+
+            warning.forEach(word => {
+                if (text.includes(word)) {
+                    analysis.riskScore += 0.5;
+                }
+            });
+
+            // 决策逻辑
+            let level, reason, confidence;
+
+            if (analysis.curseWords || analysis.politicalSensitive || analysis.violenceThreat || analysis.riskScore >= 8) {
+                level = "forbidden";
+                const reasons = [];
+                if (analysis.curseWords) reasons.push("粗俗辱骂");
+                if (analysis.politicalSensitive) reasons.push("政治敏感");
+                if (analysis.violenceThreat) reasons.push("暴力威胁");
+                reason = `严重违禁内容: ${reasons.join(', ')}`;
+                confidence = 0.9;
+            } else if (analysis.riskScore >= 2 || analysis.directMatches.length >= 2) {
+                level = "warning";
+                reason = `可疑内容 (风险分数: ${analysis.riskScore})`;
+                confidence = 0.75;
+            } else if (analysis.riskScore >= 0.5) {
+                level = "warning";
+                reason = "轻度敏感内容";
+                confidence = 0.65;
+            } else {
+                level = "safe";
+                reason = "无敏感内容";
+                confidence = 0.95;
+            }
+
+            return {
+                level,
+                reason,
+                confidence,
+                analysis
+            };
+        }
+
+        async function testAhoCorasick() {
+            const text = document.getElementById('textInput').value.trim();
+            if (!text) {
+                alert('请输入要检测的文本');
+                return;
+            }
+
+            const results = document.getElementById('results');
+            results.innerHTML = '<div class="loading">正在进行 AhoCorasick 检测...</div>';
+
+            try {
+                const startTime = performance.now();
+                const matches = await simulateAhoCorasick(text);
+                const endTime = performance.now();
+
+                const resultHtml = `
+<h3>🔍 AhoCorasick 检测结果</h3>
+<div class="result ${matches.length > 0 ? 'warning' : 'safe'}">
+检测到 ${matches.length} 个敏感词：
+${matches.length > 0 ? matches.map(match =>
+    `- "${match.word}" (位置: ${match.position[0]}-${match.position[1]}, 类别: ${match.category}, 来源: ${match.source})`
+).join('\n') : '未检测到敏感词'}
+
+<div class="stats">检测耗时: ${(endTime - startTime).toFixed(2)}ms</div>
+</div>`;
+                results.innerHTML = resultHtml;
+            } catch (error) {
+                results.innerHTML = `<div class="result error">检测失败: ${error.message}</div>`;
+            }
+        }
+
+        async function testRealWorldDetector() {
+            const text = document.getElementById('textInput').value.trim();
+            if (!text) {
+                alert('请输入要检测的文本');
+                return;
+            }
+
+            const results = document.getElementById('results');
+            results.innerHTML = '<div class="loading">正在进行 RealWorld 检测...</div>';
+
+            try {
+                const startTime = performance.now();
+                const result = await simulateRealWorldDetector(text);
+                const endTime = performance.now();
+
+                const resultHtml = `
+<h3>🌍 RealWorld 检测结果</h3>
+<div class="result ${result.level}">
+等级: ${result.level.toUpperCase()}
+原因: ${result.reason}
+置信度: ${(result.confidence * 100).toFixed(1)}%
+
+分析详情:
+- 直接匹配: ${result.analysis.directMatches.join(', ') || '无'}
+- 政治敏感: ${result.analysis.politicalSensitive ? '是' : '否'}
+- 暴力威胁: ${result.analysis.violenceThreat ? '是' : '否'}
+- 粗俗辱骂: ${result.analysis.curseWords ? '是' : '否'}
+- 风险分数: ${result.analysis.riskScore}
+
+<div class="stats">检测耗时: ${(endTime - startTime).toFixed(2)}ms</div>
+</div>`;
+                results.innerHTML = resultHtml;
+            } catch (error) {
+                results.innerHTML = `<div class="result error">检测失败: ${error.message}</div>`;
+            }
+        }
+
+        async function testAzureModerator() {
+            const text = document.getElementById('textInput').value.trim();
+            if (!text) {
+                alert('请输入要检测的文本');
+                return;
+            }
+
+            const results = document.getElementById('results');
+            results.innerHTML = '<div class="loading">正在进行 Azure Content Moderator 检测...</div>';
+
+            try {
+                const startTime = performance.now();
+                const azureResult = await callAzureModerator(text);
+                const analysis = analyzeAzureResult(azureResult);
+                const endTime = performance.now();
+
+                const categoryDetails = azureResult.categoriesAnalysis
+                    .map(cat => `- ${cat.category}: ${cat.severity}/6 ${cat.severity >= 4 ? '🔴' : cat.severity >= 2 ? '🟡' : '🟢'}`)
+                    .join('\n');
+
+                const blocklistInfo = azureResult.blocklistsMatch && azureResult.blocklistsMatch.length > 0
+                    ? `\n阻止列表匹配: ${azureResult.blocklistsMatch.map(match => match.blocklistName).join(', ')}`
+                    : '';
+
+                const riskLevel = analysis.hasHighRisk ? 'forbidden' : analysis.hasMediumRisk ? 'warning' : 'safe';
+                const riskLabel = analysis.hasHighRisk ? '高风险' : analysis.hasMediumRisk ? '中风险' : '安全';
+
+                const resultHtml = `
+<h3>☁️ Azure Content Moderator 检测结果</h3>
+<div class="result ${riskLevel}">
+风险等级: ${riskLabel}
+最高严重度: ${analysis.maxSeverity}/6
+风险类别: ${analysis.riskCategories.length > 0 ? analysis.riskCategories.join(', ') : '无'}
+
+详细分析:
+${categoryDetails}${blocklistInfo}
+
+<div class="stats">检测耗时: ${(endTime - startTime).toFixed(2)}ms</div>
+</div>`;
+                results.innerHTML = resultHtml;
+            } catch (error) {
+                results.innerHTML = `<div class="result error">Azure 检测失败: ${error.message}</div>`;
+            }
+        }
+
+        async function testAzureConnection() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<div class="loading">正在测试 Azure 连接...</div>';
+
+            try {
+                const startTime = performance.now();
+                const azureResult = await callAzureModerator('Hello world');
+                const endTime = performance.now();
+
+                results.innerHTML = `
+<h3>☁️ Azure 连接测试结果</h3>
+<div class="result safe">
+连接状态: ✅ 成功
+响应时间: ${(endTime - startTime).toFixed(2)}ms
+API 版本: 正常响应
+</div>`;
+            } catch (error) {
+                results.innerHTML = `<div class="result error">连接失败: ${error.message}</div>`;
+            }
+        }
+
+        async function testAll() {
+            const text = document.getElementById('textInput').value.trim();
+            if (!text) {
+                alert('请输入要检测的文本');
+                return;
+            }
+
+            const results = document.getElementById('results');
+            results.innerHTML = '<div class="loading">正在进行全部检测...</div>';
+
+            try {
+                const startTime = performance.now();
+
+                // 检查 Azure 是否配置
+                const endpoint = document.getElementById('azureEndpoint').value.trim();
+                const subscriptionKey = document.getElementById('azureKey').value.trim();
+                const azureConfigured = endpoint && subscriptionKey;
+
+                let promises = [
+                    simulateAhoCorasick(text),
+                    simulateRealWorldDetector(text)
+                ];
+
+                if (azureConfigured) {
+                    promises.push(callAzureModerator(text));
+                }
+
+                const results_data = await Promise.all(promises);
+                const [ahoMatches, realWorldResult, azureResult] = results_data;
+                const endTime = performance.now();
+
+                let resultHtml = `
+<h3>🔍 AhoCorasick 检测结果</h3>
+<div class="result ${ahoMatches.length > 0 ? 'warning' : 'safe'}">
+检测到 ${ahoMatches.length} 个敏感词：
+${ahoMatches.length > 0 ? ahoMatches.map(match =>
+    `- "${match.word}" (位置: ${match.position[0]}-${match.position[1]}, 类别: ${match.category})`
+).join('\n') : '未检测到敏感词'}
+</div>
+
+<h3>🌍 RealWorld 检测结果</h3>
+<div class="result ${realWorldResult.level}">
+等级: ${realWorldResult.level.toUpperCase()}
+原因: ${realWorldResult.reason}
+置信度: ${(realWorldResult.confidence * 100).toFixed(1)}%
+
+分析详情:
+- 直接匹配: ${realWorldResult.analysis.directMatches.join(', ') || '无'}
+- 政治敏感: ${realWorldResult.analysis.politicalSensitive ? '是' : '否'}
+- 暴力威胁: ${realWorldResult.analysis.violenceThreat ? '是' : '否'}
+- 粗俗辱骂: ${realWorldResult.analysis.curseWords ? '是' : '否'}
+- 风险分数: ${realWorldResult.analysis.riskScore}
+</div>`;
+
+                if (azureConfigured && azureResult) {
+                    const analysis = analyzeAzureResult(azureResult);
+                    const categoryDetails = azureResult.categoriesAnalysis
+                        .map(cat => `- ${cat.category}: ${cat.severity}/6 ${cat.severity >= 4 ? '🔴' : cat.severity >= 2 ? '🟡' : '🟢'}`)
+                        .join('\n');
+
+                    const riskLevel = analysis.hasHighRisk ? 'forbidden' : analysis.hasMediumRisk ? 'warning' : 'safe';
+                    const riskLabel = analysis.hasHighRisk ? '高风险' : analysis.hasMediumRisk ? '中风险' : '安全';
+
+                    resultHtml += `
+<h3>☁️ Azure Content Moderator 检测结果</h3>
+<div class="result ${riskLevel}">
+风险等级: ${riskLabel}
+最高严重度: ${analysis.maxSeverity}/6
+风险类别: ${analysis.riskCategories.length > 0 ? analysis.riskCategories.join(', ') : '无'}
+
+详细分析:
+${categoryDetails}
+</div>`;
+                } else if (!azureConfigured) {
+                    resultHtml += `
+<h3>☁️ Azure Content Moderator 检测结果</h3>
+<div class="result warning">
+⚠️ 未配置 Azure 参数，跳过 Azure 检测
+</div>`;
+                }
+
+                resultHtml += `<div class="stats">总检测耗时: ${(endTime - startTime).toFixed(2)}ms</div>`;
+                results.innerHTML = resultHtml;
+            } catch (error) {
+                results.innerHTML = `<div class="result error">检测失败: ${error.message}</div>`;
+            }
+        }
+
+        function setSample(text) {
+            document.getElementById('textInput').value = text;
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('敏感词检测测试页面已加载');
+        });
+    </script>
+</body>
+</html>

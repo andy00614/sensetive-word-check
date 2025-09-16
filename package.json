@@ -1,20 +1,19 @@
 {
-  "name": "sensetive-word-check",
-  "module": "index.ts",
-  "type": "module",
-  "private": true,
+  "name": "sensitive-word-check",
+  "version": "1.0.0",
+  "main": "index.ts",
   "scripts": {
-    "test": "bun test",
-    "test:watch": "bun test --watch",
-    "test:coverage": "bun test --coverage"
-  },
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
+    "test": "bun test tests/",
+    "test:unit": "bun test tests/unit/",
+    "test:integration": "bun test tests/integration/",
+    "test:quality": "bun test tests/integration/highQualityEvaluation.test.ts"
   },
   "dependencies": {
+    "@azure/ai-content-safety": "^1.0.0",
     "ahocorasick": "^1.0.2"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "bun-types": "latest"
   }
 }

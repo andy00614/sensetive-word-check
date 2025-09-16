@@ -1,5 +1,5 @@
 import { test, expect, describe, beforeAll } from "bun:test";
-import { SensitiveWordLoader } from "./SensitiveWordLoader";
+import { SensitiveWordLoader } from "../../src/core/SensitiveWordLoader";
 
 describe("SensitiveWordLoader", () => {
   let loader: SensitiveWordLoader;
