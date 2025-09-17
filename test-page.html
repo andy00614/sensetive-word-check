@@ -116,6 +116,7 @@
             <button onclick="testAhoCorasick()">AhoCorasick 检测</button>
             <button onclick="testRealWorldDetector()">RealWorld 检测</button>
             <button onclick="testAzureModerator()">Azure 检测</button>
+            <button onclick="testCombined()" style="background: #28a745;">🔥 组合检测</button>
             <button onclick="testAll()">全部检测</button>
             <button onclick="clearResults()">清空结果</button>
         </div>
@@ -128,6 +129,28 @@
             <button class="sample-button" onclick="setSample('我要杀了你')">暴力威胁</button>
             <button class="sample-button" onclick="setSample('房价太高，教育内卷严重')">警告级别</button>
             <button class="sample-button" onclick="setSample('政府的管理水平需要提升，希望政策执行更加透明')">复合内容</button>
+            <button class="sample-button" onclick="setSample('I hate you so much')">英文辱骂</button>
+            <button class="sample-button" onclick="setSample('Kill all the enemies')">英文暴力</button>
+        </div>
+
+        <div style="margin-top: 15px; padding: 10px; background: #e8f4fd; border-radius: 4px; border-left: 4px solid #007bff;">
+            <strong>🔥 组合检测说明：</strong>
+            <ul style="margin: 10px 0 5px 20px; font-size: 14px;">
+                <li><strong>核心逻辑</strong>：任何一方（本地或Azure）检测到危险内容，最终结果就是危险</li>
+                <li><strong>本地检测</strong>：专注中文敏感词，政治、暴力、辱骂等内容</li>
+                <li><strong>Azure检测</strong>：多语言支持，AI驱动的内容安全分析</li>
+                <li><strong>优势</strong>：互补覆盖，减少漏检，提高准确性</li>
+            </ul>
+        </div>
+
+        <div style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 4px; border-left: 4px solid #ffc107;">
+            <strong>💡 启用真实检测器：</strong>
+            <p style="margin: 5px 0; font-size: 14px;">
+                当前使用模拟版本。要启用真实的 CombinedDetector：<br>
+                1. 运行 <code>bun run build:web</code> 构建 Web 版本<br>
+                2. 刷新页面，系统会自动加载真实检测器<br>
+                3. 真实版本将显示更详细的分析和准确的风险评估
+            </p>
         </div>
     </div>
 
@@ -153,9 +176,66 @@
         <div id="results"></div>
     </div>
 
+    <!-- 尝试加载构建的 Web 版本 -->
+    <script src="./dist/index.js" type="module" async></script>
+
     <script>
         let ahocorasickWorker = null;
         let realWorldDetector = null;
+        let combinedDetector = null;
+        let sensitiveWordLoader = null;
+
+        // 尝试加载实际的 CombinedDetector
+        async function initializeCombinedDetector() {
+            try {
+                // 检查是否有全局的 SensitiveWordDetectors 对象
+                if (typeof window !== 'undefined' && window.SensitiveWordDetectors) {
+                    const { CombinedDetector, SensitiveWordLoader } = window.SensitiveWordDetectors;
+
+                    // 初始化敏感词加载器（这里需要实际的词库数据）
+                    sensitiveWordLoader = new SensitiveWordLoader();
+
+                    // 初始化组合检测器
+                    combinedDetector = new CombinedDetector(sensitiveWordLoader);
+
+                    console.log('✅ 已加载实际的 CombinedDetector');
+                    return true;
+                }
+
+                // 否则尝试动态导入
+                const module = await import('./dist/index.js').catch(() => null);
+                if (module && module.CombinedDetector) {
+                    const { CombinedDetector, SensitiveWordLoader } = module;
+
+                    // 初始化敏感词加载器（这里需要实际的词库数据）
+                    sensitiveWordLoader = new SensitiveWordLoader();
+
+                    // 初始化组合检测器
+                    combinedDetector = new CombinedDetector(sensitiveWordLoader);
+
+                    console.log('✅ 已加载实际的 CombinedDetector (模块导入)');
+                    return true;
+                }
+            } catch (error) {
+                console.warn('⚠️ 无法加载实际的 CombinedDetector，使用模拟版本:', error.message);
+            }
+            return false;
+        }
+
+        // 页面加载时尝试初始化
+        document.addEventListener('DOMContentLoaded', async function() {
+            const loaded = await initializeCombinedDetector();
+            if (loaded) {
+                // 更新界面提示
+                const hint = document.createElement('div');
+                hint.innerHTML = `
+                    <div style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+                        ✅ <strong>实际检测器已加载</strong> - 现在使用真实的 CombinedDetector 进行检测
+                    </div>
+                `;
+                document.querySelector('.container').insertAdjacentElement('afterbegin', hint);
+            }
+        });
 
         // 模拟 AhoCorasick 检测 (实际应该调用后端API)
         async function simulateAhoCorasick(text) {
@@ -451,6 +531,279 @@ API 版本: 正常响应
             } catch (error) {
                 results.innerHTML = `<div class="result error">连接失败: ${error.message}</div>`;
             }
+        }
+
+        // 组合检测：本地模型 + Azure
+        async function testCombined() {
+            const text = document.getElementById('textInput').value.trim();
+            if (!text) {
+                alert('请输入要检测的文本');
+                return;
+            }
+
+            const results = document.getElementById('results');
+            results.innerHTML = '<div class="loading">正在进行组合检测（本地+Azure）...</div>';
+
+            try {
+                const startTime = performance.now();
+
+                // 如果有真实的 CombinedDetector，使用它
+                if (combinedDetector) {
+                    const endpoint = document.getElementById('azureEndpoint').value.trim();
+                    const subscriptionKey = document.getElementById('azureKey').value.trim();
+
+                    // 如果配置了 Azure，设置 Azure 配置
+                    if (endpoint && subscriptionKey) {
+                        combinedDetector.setAzureConfig({
+                            endpoint,
+                            subscriptionKey,
+                            timeout: 10000
+                        });
+                    }
+
+                    const result = await combinedDetector.detect(text);
+                    const endTime = performance.now();
+
+                    displayRealCombinedResult(result, endTime - startTime);
+                    return;
+                }
+
+                // 否则使用模拟版本
+                await testCombinedSimulation(text, startTime);
+
+            } catch (error) {
+                results.innerHTML = `<div class="result error">组合检测失败: ${error.message}</div>`;
+            }
+        }
+
+        // 显示真实的 CombinedDetector 结果
+        function displayRealCombinedResult(result, duration) {
+            const results = document.getElementById('results');
+            const details = result.details;
+
+            let resultHtml = `
+<h3>🔥 真实组合检测结果 (CombinedDetector)</h3>
+<div class="result ${result.level}">
+<strong>最终决策: ${result.level.toUpperCase()}</strong>
+原因: ${result.reason}
+置信度: ${(result.confidence * 100).toFixed(1)}%
+触发方: ${details.finalDecision.triggeredBy}
+
+<strong>决策推理:</strong>
+${details.finalDecision.reasoning}
+</div>
+
+<h3>📊 详细分析</h3>
+
+<h4>🌍 本地检测 (RealWorld)</h4>
+<div class="result ${details.local.level}">
+等级: ${details.local.level.toUpperCase()}
+原因: ${details.local.reason}
+置信度: ${(details.local.confidence * 100).toFixed(1)}%
+风险分数: ${details.local.analysis.riskScore}
+直接匹配: ${details.local.analysis.directMatches.join(', ') || '无'}
+</div>`;
+
+            if (details.azure) {
+                if (details.azure.available && details.azure.result) {
+                    const analysis = details.azure.analysis;
+                    const categoryDetails = details.azure.result.categoriesAnalysis
+                        .map(cat => `${cat.category}: ${cat.severity}/6 ${cat.severity >= 4 ? '🔴' : cat.severity >= 2 ? '🟡' : '🟢'}`)
+                        .join(', ');
+
+                    const azureLevel = analysis.hasHighRisk ? 'forbidden' : analysis.hasMediumRisk ? 'warning' : 'safe';
+
+                    resultHtml += `
+<h4>☁️ Azure Content Moderator</h4>
+<div class="result ${azureLevel}">
+风险等级: ${analysis.hasHighRisk ? '高风险' : analysis.hasMediumRisk ? '中风险' : '安全'}
+最高严重度: ${analysis.maxSeverity}/6
+风险类别: ${analysis.riskCategories.length > 0 ? analysis.riskCategories.join(', ') : '无'}
+详细分析: ${categoryDetails}
+</div>`;
+                } else if (details.azure.error) {
+                    resultHtml += `
+<h4>☁️ Azure Content Moderator</h4>
+<div class="result error">
+Azure 检测失败: ${details.azure.error}
+</div>`;
+                } else {
+                    resultHtml += `
+<h4>☁️ Azure Content Moderator</h4>
+<div class="result warning">
+⚠️ Azure 检测未启用
+</div>`;
+                }
+            }
+
+            resultHtml += `<div class="stats">检测耗时: ${duration.toFixed(2)}ms</div>`;
+            results.innerHTML = resultHtml;
+        }
+
+        // 模拟版本的组合检测
+        async function testCombinedSimulation(text, startTime) {
+            // 并行执行本地和Azure检测
+            const realWorldResult = await simulateRealWorldDetector(text);
+
+            let azureResult = null;
+            let azureError = null;
+            let azureAnalysis = null;
+
+            const endpoint = document.getElementById('azureEndpoint').value.trim();
+            const subscriptionKey = document.getElementById('azureKey').value.trim();
+            const azureConfigured = endpoint && subscriptionKey;
+
+            if (azureConfigured) {
+                try {
+                    azureResult = await callAzureModerator(text);
+                    azureAnalysis = analyzeAzureResult(azureResult);
+                } catch (error) {
+                    azureError = error.message;
+                }
+            }
+
+            const endTime = performance.now();
+
+            // 综合决策逻辑
+            const combinedDecision = makeCombinedDecision(realWorldResult, azureAnalysis, azureError, azureConfigured);
+
+            let resultHtml = `
+<h3>🔥 组合检测结果 (本地+Azure)</h3>
+<div class="result ${combinedDecision.finalLevel}">
+<strong>最终决策: ${combinedDecision.finalLevel.toUpperCase()}</strong>
+原因: ${combinedDecision.finalReason}
+置信度: ${(combinedDecision.finalConfidence * 100).toFixed(1)}%
+触发方: ${combinedDecision.triggeredBy}
+
+<strong>决策逻辑:</strong>
+${combinedDecision.reasoning}
+</div>
+
+<h3>📊 详细分析</h3>
+
+<h4>🌍 本地检测 (RealWorld)</h4>
+<div class="result ${realWorldResult.level}">
+等级: ${realWorldResult.level.toUpperCase()}
+原因: ${realWorldResult.reason}
+置信度: ${(realWorldResult.confidence * 100).toFixed(1)}%
+风险分数: ${realWorldResult.analysis.riskScore}
+直接匹配: ${realWorldResult.analysis.directMatches.join(', ') || '无'}
+</div>`;
+
+            if (azureConfigured) {
+                if (azureError) {
+                    resultHtml += `
+<h4>☁️ Azure 检测</h4>
+<div class="result error">
+Azure 检测失败: ${azureError}
+</div>`;
+                } else if (azureResult && azureAnalysis) {
+                    const categoryDetails = azureResult.categoriesAnalysis
+                        .map(cat => `${cat.category}: ${cat.severity}/6 ${cat.severity >= 4 ? '🔴' : cat.severity >= 2 ? '🟡' : '🟢'}`)
+                        .join(', ');
+
+                    const azureLevel = azureAnalysis.hasHighRisk ? 'forbidden' : azureAnalysis.hasMediumRisk ? 'warning' : 'safe';
+
+                    resultHtml += `
+<h4>☁️ Azure Content Moderator</h4>
+<div class="result ${azureLevel}">
+风险等级: ${azureAnalysis.hasHighRisk ? '高风险' : azureAnalysis.hasMediumRisk ? '中风险' : '安全'}
+最高严重度: ${azureAnalysis.maxSeverity}/6
+风险类别: ${azureAnalysis.riskCategories.length > 0 ? azureAnalysis.riskCategories.join(', ') : '无'}
+详细分析: ${categoryDetails}
+</div>`;
+                }
+            } else {
+                resultHtml += `
+<h4>☁️ Azure Content Moderator</h4>
+<div class="result warning">
+⚠️ 未配置 Azure 参数，仅使用本地检测
+</div>`;
+            }
+
+            resultHtml += `<div class="stats">总检测耗时: ${(endTime - startTime).toFixed(2)}ms</div>`;
+            const results = document.getElementById('results');
+            results.innerHTML = resultHtml;
+        }
+
+        // 组合决策逻辑
+        function makeCombinedDecision(localResult, azureAnalysis, azureError, azureConfigured) {
+            // 如果Azure不可用，仅使用本地结果
+            if (!azureConfigured || azureError) {
+                return {
+                    finalLevel: localResult.level,
+                    finalReason: localResult.reason,
+                    finalConfidence: localResult.confidence,
+                    triggeredBy: '本地检测',
+                    reasoning: azureError
+                        ? `Azure检测失败 (${azureError})，采用本地检测结果`
+                        : 'Azure未配置，采用本地检测结果'
+                };
+            }
+
+            const localForbidden = localResult.level === 'forbidden';
+            const localWarning = localResult.level === 'warning';
+            const azureForbidden = azureAnalysis.hasHighRisk;
+            const azureWarning = azureAnalysis.hasMediumRisk;
+
+            // 核心规则：任何一方判定为危险，最终结果就是危险
+            if (localForbidden || azureForbidden) {
+                let triggeredBy = '';
+                let reasoning = '';
+
+                if (localForbidden && azureForbidden) {
+                    triggeredBy = '本地+Azure';
+                    reasoning = `本地和Azure都检测到高风险内容。本地: ${localResult.reason}; Azure: 最高严重度${azureAnalysis.maxSeverity}/6`;
+                } else if (localForbidden) {
+                    triggeredBy = '本地检测';
+                    reasoning = `本地检测到高风险内容: ${localResult.reason}。Azure认为相对安全 (严重度${azureAnalysis.maxSeverity}/6)，但采用更严格的本地标准`;
+                } else {
+                    triggeredBy = 'Azure检测';
+                    reasoning = `Azure检测到高风险内容 (严重度${azureAnalysis.maxSeverity}/6，类别: ${azureAnalysis.riskCategories.join(', ')})。本地检测相对宽松，但遵循Azure的严格标准`;
+                }
+
+                return {
+                    finalLevel: 'forbidden',
+                    finalReason: `高风险内容 (${triggeredBy})`,
+                    finalConfidence: Math.max(localResult.confidence, 0.9),
+                    triggeredBy,
+                    reasoning
+                };
+            }
+
+            // 任何一方判定为警告，最终结果就是警告
+            if (localWarning || azureWarning) {
+                let triggeredBy = '';
+                let reasoning = '';
+
+                if (localWarning && azureWarning) {
+                    triggeredBy = '本地+Azure';
+                    reasoning = `本地和Azure都检测到中等风险。本地: ${localResult.reason}; Azure: 严重度${azureAnalysis.maxSeverity}/6`;
+                } else if (localWarning) {
+                    triggeredBy = '本地检测';
+                    reasoning = `本地检测到中等风险: ${localResult.reason}`;
+                } else {
+                    triggeredBy = 'Azure检测';
+                    reasoning = `Azure检测到中等风险 (严重度${azureAnalysis.maxSeverity}/6)`;
+                }
+
+                return {
+                    finalLevel: 'warning',
+                    finalReason: `中等风险内容 (${triggeredBy})`,
+                    finalConfidence: Math.max(localResult.confidence, 0.8),
+                    triggeredBy,
+                    reasoning
+                };
+            }
+
+            // 两者都认为安全
+            return {
+                finalLevel: 'safe',
+                finalReason: '本地和Azure检测均未发现敏感内容',
+                finalConfidence: Math.min(localResult.confidence, 0.95),
+                triggeredBy: '无',
+                reasoning: `本地检测: ${localResult.reason}; Azure检测: 最高严重度${azureAnalysis.maxSeverity}/6，无风险内容`
+            };
         }
 
         async function testAll() {

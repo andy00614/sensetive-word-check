@@ -1,12 +1,38 @@
 {
   "name": "sensitive-word-check",
   "version": "1.0.0",
-  "main": "index.ts",
+  "description": "A comprehensive sensitive word detection system with combined local and Azure Content Moderator capabilities",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
   "scripts": {
+    "dev": "bun --hot src/api/server.ts",
+    "start": "bun src/api/server.ts",
+    "build": "bun build src/core/index.ts --outdir dist --target node --format esm",
+    "build:web": "bun build src/web/index.ts --outdir dist --target browser --format esm --minify",
+    "build:api": "bun build src/api/server.ts --outdir dist/api --target node --format esm",
+    "build:sdk": "bun build src/sdk/client.ts --outdir dist/sdk --target node --format esm && bun build src/sdk/client.ts --outdir dist/sdk --target browser --format esm --minify --outfile=client.browser.js",
+    "build:all": "npm run build && npm run build:web && npm run build:api && npm run build:sdk",
     "test": "bun test tests/",
     "test:unit": "bun test tests/unit/",
     "test:integration": "bun test tests/integration/",
-    "test:quality": "bun test tests/integration/highQualityEvaluation.test.ts"
+    "test:quality": "bun test tests/integration/highQualityEvaluation.test.ts",
+    "test:watch": "bun test --watch tests/",
+    "test:api": "echo 'API tests not implemented yet'",
+    "typecheck": "bunx tsc --noEmit",
+    "lint": "echo 'No linter configured yet'",
+    "clean": "rm -rf dist coverage",
+    "serve": "bun --hot src/api/server.ts",
+    "demo": "open test-page.html",
+    "api:health": "curl http://localhost:3000/api/health",
+    "api:info": "curl http://localhost:3000/api/info",
+    "api:test": "curl -X POST http://localhost:3000/api/detect -H 'Content-Type: application/json' -d '{\"text\":\"测试文本\"}'",
+    "docs:api": "echo 'API documentation available at docs/API.md'",
+    "examples:sdk": "bun examples/sdk-usage.ts"
   },
   "dependencies": {
     "@azure/ai-content-safety": "^1.0.0",
@@ -15,5 +41,22 @@
   "devDependencies": {
     "@types/bun": "latest",
     "bun-types": "latest"
+  },
+  "keywords": [
+    "content-moderation",
+    "sensitive-word-detection",
+    "azure-content-safety",
+    "text-filtering",
+    "security",
+    "chinese-nlp"
+  ],
+  "author": "Andy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "."
+  },
+  "engines": {
+    "bun": ">=1.0.0"
   }
 }
