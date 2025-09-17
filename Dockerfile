@@ -31,10 +31,10 @@ COPY --from=build /app/package.json ./
 # Install only production dependencies
 RUN bun install --production --frozen-lockfile
 
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 bun
-USER bun
+# Create non-root user (if not exists)
+RUN addgroup --system --gid 1001 nodejs || true
+RUN adduser --system --uid 1001 bunuser || useradd -r -u 1001 bunuser
+USER bunuser
 
 # Expose port
 EXPOSE 3000
