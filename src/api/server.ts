@@ -272,6 +272,7 @@ class SensitiveWordAPI {
         'POST /api/detect': 'Detect sensitive content in text',
         'GET /api/health': 'Health check endpoint',
         'GET /api/info': 'API information',
+        'GET /api/stats': 'Get detection statistics',
       },
       usage: {
         detect: 'POST /api/detect',
@@ -280,6 +281,25 @@ class SensitiveWordAPI {
         }
       },
       documentation: 'https://github.com/your-repo/sensitive-word-check',
+    });
+  }
+
+  // 统计信息
+  private handleStats(): Response {
+    return this.createResponse({
+      success: true,
+      stats: {
+        uptime: Date.now() - this.startTime,
+        memory: process.memoryUsage(),
+        pid: process.pid,
+        platform: process.platform,
+        version: process.version,
+        detectorStatus: this.detector.getStatus(),
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        version: this.version,
+      },
     });
   }
 
@@ -309,6 +329,10 @@ class SensitiveWordAPI {
 
     if (method === 'GET' && url.pathname === '/api/info') {
       return this.handleInfo();
+    }
+
+    if (method === 'GET' && url.pathname === '/api/stats') {
+      return this.handleStats();
     }
 
     // 根路径重定向到信息页面
