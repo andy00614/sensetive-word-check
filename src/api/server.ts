@@ -65,7 +65,11 @@ class SensitiveWordAPI {
 
     try {
       // 初始化词库加载器
-      const loader = new SensitiveWordLoader('./Sensitive-lexicon/Vocabulary');
+      const vocabularyPath = process.env.VOCABULARY_PATH || '/app/Sensitive-lexicon/Vocabulary';
+      console.log(`📁 Using vocabulary path: ${vocabularyPath}`);
+      console.log(`📁 Current working directory: ${process.cwd()}`);
+
+      const loader = new SensitiveWordLoader(vocabularyPath);
       const initialized = loader.initialize();
 
       if (!initialized) {
