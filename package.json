@@ -36,7 +36,6 @@
     "examples:sdk": "bun examples/sdk-usage.ts"
   },
   "dependencies": {
-    "@azure/ai-content-safety": "^1.0.0",
     "ahocorasick": "^1.0.2"
   },
   "devDependencies": {
