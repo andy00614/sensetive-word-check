@@ -2,9 +2,24 @@
 
 export interface DetectRequest {
   text: string;
+  debug?: boolean; // 默认false，极简模式
 }
 
-export interface DetectResponse {
+// 极简响应格式
+export interface SimpleDetectResponse {
+  success: boolean;
+  level: 'safe' | 'warning' | 'forbidden';
+  score: number;
+  confidence: number;
+  meta: {
+    timestamp: string;
+    processingTime: number;
+    version: string;
+  };
+}
+
+// 详细响应格式（debug模式）
+export interface DetailedDetectResponse {
   success: boolean;
   result?: {
     level: 'safe' | 'warning' | 'forbidden';
@@ -19,6 +34,9 @@ export interface DetectResponse {
     version: string;
   };
 }
+
+// 联合类型
+export type DetectResponse = SimpleDetectResponse | DetailedDetectResponse;
 
 export interface HealthResponse {
   success: boolean;
@@ -103,9 +121,11 @@ export class SensitiveWordClient {
 
   /**
    * 检测敏感词内容
+   * @param text 要检测的文本
+   * @param debug 是否返回详细信息（默认false，返回极简格式）
    */
-  async detect(text: string): Promise<DetectResponse> {
-    const request: DetectRequest = { text };
+  async detect(text: string, debug = false): Promise<DetectResponse> {
+    const request: DetectRequest = { text, debug };
 
     return this.makeRequest<DetectResponse>('/api/detect', {
       method: 'POST',
@@ -115,9 +135,11 @@ export class SensitiveWordClient {
 
   /**
    * 批量检测
+   * @param texts 要检测的文本数组
+   * @param debug 是否返回详细信息（默认false，返回极简格式）
    */
-  async detectBatch(texts: string[]): Promise<DetectResponse[]> {
-    const promises = texts.map(text => this.detect(text));
+  async detectBatch(texts: string[], debug = false): Promise<DetectResponse[]> {
+    const promises = texts.map(text => this.detect(text, debug));
     return Promise.all(promises);
   }
 
@@ -176,9 +198,10 @@ export const defaultClient = createClient({
 // 批量检测便捷函数
 export async function detectTexts(
   texts: string[],
-  client: SensitiveWordClient = defaultClient
+  client: SensitiveWordClient = defaultClient,
+  debug = false
 ): Promise<Array<DetectResponse & { text: string; index: number }>> {
-  const results = await client.detectBatch(texts);
+  const results = await client.detectBatch(texts, debug);
 
   return results.map((result, index) => ({
     ...result,

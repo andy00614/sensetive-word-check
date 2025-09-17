@@ -31,6 +31,7 @@
     "api:health": "curl http://localhost:3000/api/health",
     "api:info": "curl http://localhost:3000/api/info",
     "api:test": "curl -X POST http://localhost:3000/api/detect -H 'Content-Type: application/json' -d '{\"text\":\"测试文本\"}'",
+    "api:test:debug": "curl -X POST http://localhost:3000/api/detect -H 'Content-Type: application/json' -d '{\"text\":\"测试文本\",\"debug\":true}'",
     "docs:api": "echo 'API documentation available at docs/API.md'",
     "examples:sdk": "bun examples/sdk-usage.ts"
   },

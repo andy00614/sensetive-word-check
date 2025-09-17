@@ -1,4 +1,4 @@
-import type { DetectRequest, DetectResponse } from './server';
+import type { DetectRequest, DetectResponse, SimpleDetectResponse, DetailedDetectResponse } from './server';
 import { CombinedDetector } from '../core/CombinedDetector';
 
 // 路由处理器类型
@@ -76,6 +76,37 @@ export class APIRouter {
     }, status);
   }
 
+  // 转换为极简格式
+  private toSimpleFormat(
+    result: any,
+    processingTime: number
+  ): SimpleDetectResponse {
+    // 计算综合风险评分
+    let totalScore = 0;
+
+    // 本地检测的风险评分
+    if (result.details.local?.analysis?.riskScore) {
+      totalScore += result.details.local.analysis.riskScore;
+    }
+
+    // Azure检测的风险评分（转换为0-10分制）
+    if (result.details.azure?.analysis?.maxSeverity) {
+      totalScore += (result.details.azure.analysis.maxSeverity / 6) * 10;
+    }
+
+    return {
+      success: true,
+      level: result.level,
+      score: Math.round(totalScore * 10) / 10, // 保留1位小数
+      confidence: result.confidence,
+      meta: {
+        timestamp: new Date().toISOString(),
+        processingTime,
+        version: this.version,
+      },
+    };
+  }
+
   // 验证请求体
   private async validateDetectRequest(request: Request): Promise<DetectRequest | Response> {
     try {
@@ -111,15 +142,26 @@ export class APIRouter {
       const result = await this.detector.detect(body.text);
       const processingTime = Date.now() - startTime;
 
-      const response: DetectResponse = {
-        success: true,
-        result,
-        meta: {
-          timestamp: new Date().toISOString(),
-          processingTime,
-          version: this.version,
-        },
-      };
+      // 根据debug参数决定返回格式（默认为极简模式）
+      const isDebugMode = body.debug === true;
+
+      let response: DetectResponse;
+
+      if (isDebugMode) {
+        // 详细模式 - 返回完整信息
+        response = {
+          success: true,
+          result,
+          meta: {
+            timestamp: new Date().toISOString(),
+            processingTime,
+            version: this.version,
+          },
+        } as DetailedDetectResponse;
+      } else {
+        // 极简模式 - 只返回核心信息
+        response = this.toSimpleFormat(result, processingTime);
+      }
 
       return this.createResponse(response);
 

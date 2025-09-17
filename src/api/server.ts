@@ -5,9 +5,24 @@ import type { CombinedDetectionResult } from '../core/CombinedDetector';
 // API 请求和响应类型
 export interface DetectRequest {
   text: string;
+  debug?: boolean; // 默认false，极简模式
 }
 
-export interface DetectResponse {
+// 极简响应格式
+export interface SimpleDetectResponse {
+  success: boolean;
+  level: 'safe' | 'warning' | 'forbidden';
+  score: number;
+  confidence: number;
+  meta: {
+    timestamp: string;
+    processingTime: number;
+    version: string;
+  };
+}
+
+// 详细响应格式（debug模式）
+export interface DetailedDetectResponse {
   success: boolean;
   result?: CombinedDetectionResult;
   error?: string;
@@ -17,6 +32,9 @@ export interface DetectResponse {
     version: string;
   };
 }
+
+// 联合类型
+export type DetectResponse = SimpleDetectResponse | DetailedDetectResponse;
 
 export interface HealthResponse {
   success: boolean;
@@ -109,6 +127,37 @@ class SensitiveWordAPI {
     }, status);
   }
 
+  // 转换为极简格式
+  private toSimpleFormat(
+    result: CombinedDetectionResult,
+    processingTime: number
+  ): SimpleDetectResponse {
+    // 计算综合风险评分
+    let totalScore = 0;
+
+    // 本地检测的风险评分
+    if (result.details.local?.analysis?.riskScore) {
+      totalScore += result.details.local.analysis.riskScore;
+    }
+
+    // Azure检测的风险评分（转换为0-10分制）
+    if (result.details.azure?.analysis?.maxSeverity) {
+      totalScore += (result.details.azure.analysis.maxSeverity / 6) * 10;
+    }
+
+    return {
+      success: true,
+      level: result.level,
+      score: Math.round(totalScore * 10) / 10, // 保留1位小数
+      confidence: result.confidence,
+      meta: {
+        timestamp: new Date().toISOString(),
+        processingTime,
+        version: this.version,
+      },
+    };
+  }
+
   // 检测文本内容
   private async handleDetect(request: Request): Promise<Response> {
     const startTime = Date.now();
@@ -132,15 +181,26 @@ class SensitiveWordAPI {
       const result = await this.detector.detect(body.text);
       const processingTime = Date.now() - startTime;
 
-      const response: DetectResponse = {
-        success: true,
-        result,
-        meta: {
-          timestamp: new Date().toISOString(),
-          processingTime,
-          version: this.version,
-        },
-      };
+      // 根据debug参数决定返回格式（默认为极简模式）
+      const isDebugMode = body.debug === true;
+
+      let response: DetectResponse;
+
+      if (isDebugMode) {
+        // 详细模式 - 返回完整信息
+        response = {
+          success: true,
+          result,
+          meta: {
+            timestamp: new Date().toISOString(),
+            processingTime,
+            version: this.version,
+          },
+        } as DetailedDetectResponse;
+      } else {
+        // 极简模式 - 只返回核心信息
+        response = this.toSimpleFormat(result, processingTime);
+      }
 
       return this.createResponse(response);
 
