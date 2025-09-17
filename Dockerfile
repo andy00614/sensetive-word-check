@@ -6,7 +6,10 @@ COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile
 
 COPY src ./src
-COPY Sensitive-lexicon ./Sensitive-lexicon
+
+# 创建目录并拷贝词库
+RUN mkdir -p /app/Sensitive-lexicon
+COPY Sensitive-lexicon/Vocabulary /app/Sensitive-lexicon/Vocabulary
 
 # 验证文件是否正确拷贝
 RUN ls -la /app/Sensitive-lexicon/ && ls -la /app/Sensitive-lexicon/Vocabulary/ | head -5
