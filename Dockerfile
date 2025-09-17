@@ -7,12 +7,13 @@ RUN bun install --frozen-lockfile
 
 COPY src ./src
 
-# 创建目录并拷贝词库
-RUN mkdir -p /app/Sensitive-lexicon
-COPY Sensitive-lexicon/Vocabulary /app/Sensitive-lexicon/Vocabulary
+# 拷贝词库（两种方式备用）
+COPY vocabulary-data ./vocabulary-data
+COPY Sensitive-lexicon/Vocabulary ./Sensitive-lexicon/Vocabulary 2>/dev/null || true
 
 # 验证文件是否正确拷贝
-RUN ls -la /app/Sensitive-lexicon/ && ls -la /app/Sensitive-lexicon/Vocabulary/ | head -5
+RUN ls -la /app/vocabulary-data/ | head -5 || echo "vocabulary-data not found"
+RUN ls -la /app/Sensitive-lexicon/Vocabulary/ | head -5 || echo "Sensitive-lexicon/Vocabulary not found"
 
 EXPOSE 3000
 

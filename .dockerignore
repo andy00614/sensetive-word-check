@@ -35,6 +35,9 @@ Thumbs.db
 .gitignore
 README.md
 
+# 但保留敏感词库
+!Sensitive-lexicon/Vocabulary
+
 # Docker
 Dockerfile*
 docker-compose*

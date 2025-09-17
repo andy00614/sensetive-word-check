@@ -64,8 +64,35 @@ class SensitiveWordAPI {
     console.log('🚀 Initializing Sensitive Word Detection API...');
 
     try {
-      // 初始化词库加载器
-      const vocabularyPath = process.env.VOCABULARY_PATH || '/app/Sensitive-lexicon/Vocabulary';
+      // 初始化词库加载器 - 尝试多个路径
+      let vocabularyPath = process.env.VOCABULARY_PATH;
+
+      if (!vocabularyPath) {
+        // 按优先级尝试不同路径
+        const paths = [
+          '/app/vocabulary-data',
+          '/app/Sensitive-lexicon/Vocabulary',
+          './vocabulary-data',
+          './Sensitive-lexicon/Vocabulary'
+        ];
+
+        for (const path of paths) {
+          try {
+            const fs = require('fs');
+            if (fs.existsSync(path)) {
+              vocabularyPath = path;
+              break;
+            }
+          } catch (e) {
+            // 继续尝试下一个路径
+          }
+        }
+      }
+
+      if (!vocabularyPath) {
+        throw new Error('Cannot find vocabulary directory');
+      }
+
       console.log(`📁 Using vocabulary path: ${vocabularyPath}`);
       console.log(`📁 Current working directory: ${process.cwd()}`);
 
