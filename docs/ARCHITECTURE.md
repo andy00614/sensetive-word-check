@@ -2,7 +2,7 @@
 
 ## 📋 系统概览
 
-**敏感词检测框架**是一个企业级、高性能的内容安全检测系统，采用**本地+云端混合检测**策略，为开发者提供完整的敏感内容识别解决方案。
+**敏感词检测框架**是一个高性能的内容安全检测系统，采用**本地+云端混合检测**策略，为开发者提供完整的敏感内容识别解决方案。
 
 ## 🔄 技术流程图
 
@@ -228,12 +228,13 @@ graph TD
 
 ## 📊 性能指标
 
-| 指标         | 本地检测  | Azure检测 | 混合检测    |
-| ------------ | --------- | --------- | ----------- |
-| **响应时间** | 1-3ms     | 50-200ms  | 50-300ms    |
-| **并发处理** | 1000+ QPS | 100+ QPS  | 100+ QPS    |
-| **准确率**   | 95%+      | 98%+      | 99%+        |
-| **语言支持** | 中文      | 多语言    | 中文+多语言 |
+### 🎯 检测准确率指标
+
+| 安全级别      | 整体准确率 | 说明               |
+| ------------- | ---------- | ------------------ |
+| **SAFE**      | 97.3%      | 安全内容识别准确率 |
+| **WARNING**   | 92.0%      | 可疑内容识别准确率 |
+| **FORBIDDEN** | 99.2%      | 违禁内容识别准确率 |
 
 ## 🚀 技术栈
 
@@ -289,50 +290,6 @@ const risks = documents.filter(doc =>
 );
 ```
 
-## 🔧 快速开始
-
-### 1. **部署API服务**
-```bash
-# Docker方式
-docker run -p 3000:3000 \
-  -e AZURE_CONTENT_MODERATOR_ENDPOINT="your-endpoint" \
-  -e AZURE_CONTENT_MODERATOR_KEY="your-key" \
-  sensitive-word-api
-
-# 或者直接运行
-bun install
-bun run dev
-```
-
-### 2. **使用SDK**
-```typescript
-import { SensitiveWordClient } from 'sensitive-word-sdk';
-
-const client = new SensitiveWordClient({
-  baseURL: 'http://localhost:3000'
-});
-
-// 简单检测
-const result = await client.detect('测试文本');
-console.log(result.level); // 'safe' | 'warning' | 'forbidden'
-
-// 详细检测
-const detailed = await client.detect('测试文本', true);
-console.log(detailed.result.details);
-```
-
-### 3. **REST API调用**
-```bash
-# 极简模式
-curl -X POST http://localhost:3000/api/detect \
-  -H "Content-Type: application/json" \
-  -d '{"text":"测试内容"}'
-
-# 详细模式
-curl -X POST http://localhost:3000/api/detect \
-  -H "Content-Type: application/json" \
-  -d '{"text":"测试内容","debug":true}'
-```
 
 ## 📈 发展路线图
 
@@ -345,23 +302,4 @@ curl -X POST http://localhost:3000/api/detect \
 
 ### 🚧 开发中
 - [ ] Python SDK
-- [ ] 性能监控面板
 - [ ] 自定义词库管理
-- [ ] 批量文件检测
-
-### 🎯 未来计划
-- [ ] Go/Java SDK
-- [ ] 机器学习模型集成
-- [ ] 图片/视频内容检测
-- [ ] 企业级管理后台
-
-## 📞 技术支持
-
-- **文档**: [API文档](./API.md)
-- **示例**: [SDK使用示例](../examples/)
-- **源码**: [GitHub仓库](https://github.com/your-repo/sensitive-word-check)
-- **问题反馈**: [Issues](https://github.com/your-repo/sensitive-word-check/issues)
-
----
-
-**© 2025 敏感词检测框架 - 企业级内容安全解决方案**

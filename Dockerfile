@@ -16,3 +16,4 @@ RUN ls -la /app/vocabulary-data/ | head -5
 EXPOSE 3000
 
 CMD ["bun", "src/api/server.ts"]
+
